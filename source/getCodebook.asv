@@ -1,0 +1,176 @@
+clear all;
+function newblk = getCodebook( TEMPLATE )
+%UNTITLED Summary of this function goes here
+%Detailed explanation goes here
+
+%TEMPLATE = imread('C:\D-DRIVE\Rohan\BE-PROJECT\Codes\pics\template5.jpg');
+
+[r1,c1,d1]= size(TEMPLATE);
+blk =zeros((r1/2*c1/2),12);%------------'blk' is a 2D array of blocks where every row represents one blk with 12 values.
+alloccluster =zeros(r1/2*c1/2,1);%---------alloccluster will the cluster to which the corespondingblk belongs
+row1=1;
+col1=1;
+blkpos=1;
+    while (blkpos<=(r1/2 * c1/2))%-------initializing blks with pixel value
+        if  row1<=r1-1
+        blk(blkpos,1) =(TEMPLATE(row1,col1,1));
+        blk(blkpos,2) =(TEMPLATE(row1,col1,2));
+        blk(blkpos,3) =(TEMPLATE(row1,col1,3));
+        blk(blkpos,4) =(TEMPLATE(row1,col1+1,1));
+        blk(blkpos,5) =(TEMPLATE(row1,col1+1,2));
+        blk(blkpos,6) =(TEMPLATE(row1,col1+1,3));
+        blk(blkpos,7) =(TEMPLATE(row1+1,col1,1));
+        blk(blkpos,8) =(TEMPLATE(row1+1,col1,2));
+        blk(blkpos,9) =(TEMPLATE(row1+1,col1,3));
+        blk(blkpos,10) =(TEMPLATE(row1+1,col1+1,1));
+        blk(blkpos,11) =(TEMPLATE(row1+1,col1+1,2));
+        blk(blkpos,12) =(TEMPLATE(row1+1,col1+1,3));
+        col1=col1+2;
+            if(col1>c1-1)
+                row1=row1+2;
+                col1=1;
+            end;        
+        end;
+        alloccluster(blkpos,1)=1;%--------initially all blks in cluster '1'.
+        blkpos=blkpos+1;
+    end;
+    
+pos=1;
+noofclusters=8; %-------------maximum number of clusters
+limit=(noofclusters*2)-1; %------------'cluster no' of last possible cluster
+cond=1;
+cvpos=1;
+clear CV;
+clear newblk;
+while cond<=noofclusters-1 %------Sorting the blks into clusters. Number of clusters as mentioned.
+    flag=false;
+    %count=0;
+    %smth =zeros(1,12);
+    blkno=1;
+    clear currblks;
+    for i=1:(r1/2*c1/2) %---------this 'for' loop collects all blks in 'cluster no= (pos)' into currblk
+         if alloccluster(i,1)==pos
+           for k=1:12
+              %smth(1,k) = smth(1,k)+blk(i,k);
+              clusblocks(pos,blkno,k)=blk(i,k); %-----clusblocks will give all blks that belonged to every individual cluster
+              currblks(blkno,k)=blk(i,k); %------gives all blks belonging to present cluster
+              %count=count+1;
+              flag=true;
+           end
+           blkno=blkno+1;
+         end;
+    end
+    
+    if(flag==false) %------- this 'if' will be true if there are no blks in the cluster under consideration. 'CV' will contain all '-1's
+        for k=1:12
+            CV(cvpos,k)=double(-1);
+            clusblocks(pos,1,k)=-1;
+            meanplusone(cvpos,k)=-1;
+            meanminusone(cvpos,k)=-1;
+        end
+        pos=pos+1;
+        cond=cond+1;
+        cvpos=cvpos+1;
+        %count=count+1;
+        continue;
+    else %----------flow will come here only if there is a blk in the cluster
+        clear clusmean; 
+        clusmean=mean(currblks);
+        for k=1:12 %--------this for loop puts the corresponding mean values of the 'bks in this cluster' into 'CV'
+            if  numel(clusmean)==1
+            CV(cvpos,k)=currblks(1,k); %---A
+            else
+            CV(cvpos,k)=double(clusmean(k));
+            end;
+            meanplusone(cvpos,k)=CV(cvpos,k)+1; %------- A+1
+            meanminusone(cvpos,k)=CV(cvpos,k)-1; %-------A-1
+        end
+        
+        for i=1:(r1/2*c1/2) %------this for loop calculates the distance of the blks in the cluster from 'A+1'->(ED!) n 'A-1'->(ED2)
+            ED1=0;          %------and sorts the blks in this cluster into two cluaters accordingly
+            ED2=0;
+            if alloccluster(i,1)==pos
+                for k=1:12
+                    ED1=ED1+((blk(i,k)-meanplusone(cvpos,k))^2);
+                    ED2=ED2+((blk(i,k)-meanminusone(cvpos,k))^2);
+                end
+            
+                if ED1<ED2
+                    alloccluster(i,1)=alloccluster(i,1)*2;
+                    %fprintf('1');
+                else
+                    alloccluster(i,1)=alloccluster(i,1)*2+1;
+                    %fprintf('2');
+                end;
+            end;
+        end    
+    end;
+    
+    pos=pos+1;
+    cond=cond+1;
+    cvpos=cvpos+1;
+end
+cbentry=1;
+while cond<=limit   %-------this while loop simply collects together the blks of every individual cluster of the final clusters n assigns the 
+    flag=false;     %--corresponding CV values
+    %count=0;
+    %smth =zeros(1,12);
+    blkno=1;
+    clear currblks;
+    for i=1:(r1/2*c1/2)
+         if alloccluster(i,1)==pos
+           for k=1:12
+              %smth(1,k) = smth(1,k)+blk(i,k);
+              clusblocks(pos,blkno,k)=blk(i,k);
+              currblks(blkno,k)=blk(i,k);
+              %count=count+1;
+              
+              flag=true;
+           end
+           blkno=blkno+1;
+         end;
+    end
+    if(flag==false)
+        for k=1:12
+            CV(cvpos,k)=double(-1);
+            clusblocks(pos,1,k)=-1;
+            meanplusone(cvpos,k)=-1;
+            meanminusone(cvpos,k)=-1;
+        end
+        pos=pos+1;
+        cond=cond+1;
+        cvpos=cvpos+1;
+        %count=count+1;
+        continue;
+    else
+        clusmean=mean(currblks);
+        for k=1:12
+            if  numel(clusmean)==1
+            CV(cvpos,k)=currblks(1,k);
+            else
+            CV(cvpos,k)=double(clusmean(k));
+            end; 
+           % meanplusone(cvpos,k)=CV(cvpos,k)+1;
+           % meanminusone(cvpos,k)=CV(cvpos,k)-1;
+               
+        end        
+    end;
+    for k=1:12
+      newblk(cbentry,k)=CV(cvpos,k);
+    end
+    cbentry=cbentry+1;
+%    newblk=zeros(r1/2*c1/2,1);
+%    for i=1:(r1/2*c1/2)   %---------this for loop makes a 'newblk' array by assigning every blk its corresponding CV value according to
+%         if alloccluster(i,1)==pos %--the cluster it belongs to
+%           cbentry=cbentry+1;
+%           for k=1:12
+%               newblk(cbentry,k)=CV(cvpos,k);
+%           end
+%         end;
+%    end
+    
+    pos=pos+1;
+    cond=cond+1;
+    cvpos=cvpos+1;
+end
+
